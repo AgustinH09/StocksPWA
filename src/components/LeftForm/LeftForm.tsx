@@ -1,26 +1,57 @@
-import React, { useState, useMemo } from 'react';
-import { Box, Typography, TextField, Button, Divider, Snackbar, Alert, FilterOptionsState } from '@mui/material';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
+import React, { useState, useMemo } from "react";
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  Divider,
+  Snackbar,
+  Alert,
+  FilterOptionsState,
+} from "@mui/material";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 
-import { useStocks } from 'hooks/useStocks';
-import { useFinnhubSymbols } from 'hooks/useFinnhubSymbols';
+import { useStocks } from "hooks/useStocks";
+import { useFinnhubSymbols } from "hooks/useFinnhubSymbols";
 
-const filter = createFilterOptions<{ symbol: string; description: string; }>({
+const filter = createFilterOptions<{ symbol: string; description: string }>({
   limit: 50,
 });
+
+const filterFunction = (
+  options: { symbol: string; description: string }[],
+  params: FilterOptionsState<{ symbol: string; description: string }>
+) => {
+  const filtered = filter(options, params) as { symbol: string; description: string }[];
+
+  const input = params.inputValue.toLowerCase();
+  if (!input) return filtered;
+
+  const ranked = filtered.sort((a, b) => {
+    const aSymbol = a.symbol.toLowerCase();
+    const bSymbol = b.symbol.toLowerCase();
+
+    const score = (symbol: string) =>
+      (symbol.startsWith(input) ? 2 : 0) + (symbol.includes(input) ? 1 : 0);
+
+    return score(bSymbol) - score(aSymbol) || a.symbol.localeCompare(b.symbol);
+  });
+
+  return ranked;
+}
 
 const LeftForm: React.FC = () => {
   const symbols = useFinnhubSymbols();
   const { addSymbol } = useStocks();
 
-  const [inputValue, setInputValue] = useState('');
-  const [selectedStock, setSelectedStock] = useState<string>('');
-  const [alertValue, setAlertValue] = useState<string>('');
+  const [inputValue, setInputValue] = useState("");
+  const [selectedStock, setSelectedStock] = useState<string>("");
+  const [alertValue, setAlertValue] = useState<string>("");
   const [errorOpen, setErrorOpen] = useState(false);
 
   const symbolOptions = useMemo(() => {
-    return symbols.map(s => ({ symbol: s.symbol, description: s.description }));
+    return symbols.map((s) => ({ symbol: s.symbol, description: s.description }));
   }, [symbols]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,12 +62,16 @@ const LeftForm: React.FC = () => {
     if (!success) {
       setErrorOpen(true);
     } else {
-      setAlertValue('');
+      setAlertValue("");
     }
   };
 
   return (
-    <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+    <Box
+      component="form"
+      onSubmit={handleSubmit}
+      sx={{ display: "flex", flexDirection: "column", gap: 3 }}
+    >
       <Box>
         <Box display="flex" alignItems="center" gap={1} mb={1}>
           <TrendingUpIcon color="primary" />
@@ -54,18 +89,17 @@ const LeftForm: React.FC = () => {
       <Autocomplete
         fullWidth
         options={symbolOptions}
-        getOptionLabel={(option: { symbol: string; description: string; }) => `${option.symbol} - ${option.description}`}
-        filterOptions={(options: { symbol: string; description: string; }[], params: FilterOptionsState<{ symbol: string; description: string; }>) => {
-          const filtered = filter(options, params) as { symbol: string; description: string; }[];
-          return filtered;
-        }}
+        getOptionLabel={(option: { symbol: string; description: string }) =>
+          `${option.symbol} - ${option.description}`
+        }
+        filterOptions={filterFunction}
         inputValue={inputValue}
         onInputChange={(_, value) => setInputValue(value)}
         onChange={(_, newValue) => {
           if (newValue) {
             setSelectedStock(newValue.symbol);
           } else {
-            setSelectedStock('');
+            setSelectedStock("");
           }
         }}
         renderInput={(params) => (

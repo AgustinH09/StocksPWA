@@ -12,44 +12,13 @@ A Progressive Web Application (PWA) built with Vite and React, designed to provi
 - **Chart Integration**: Visualizes data using Chart.js and React Chart.js 2.
 - **Theming**: Supports custom themes using Material UI's theming capabilities.
 - **Notifications**: Leverages browser notifications to alert users.
-
----
-
-## Technical Overview
-
-This PWA is built using the following technologies:
-
-- **Vite**: A modern frontend build tool for fast development and optimized production builds.
-- **React**: A library for building user interfaces.
-- **Vite PWA Plugin**: Provides support for PWA features, including service workers and a web manifest.
-- **Material UI**: A React-based component library for building accessible and elegant UI components.
-- **Chart.js**: A JavaScript/Typescript library for creating interactive charts.
-- **React useWebSocket**: A React hook for managing WebSocket connections.
-
-
-### PWA Configuration
-
-The service worker and caching strategies are handled by the Vite PWA plugin. Key configurations include:
-
-- `registerType: 'autoUpdate'` ensures the service worker is updated automatically.
-- `runtimeCaching` for API requests (e.g., `https://finnhub.io/api/v1/`).
-- Custom icons and theming via the manifest:
-  - `theme_color: '#003366'`
-  - Icons: `192x192` and `512x512` PNGs.
-
----
-
-## Default Stocks
-
-The application can be configured to add default stocks upon initialization.
-
-To enable this feature, set the `VITE_USE_DEFAULT_STOCKS` environment variable to `true`.
-
-To add custom stocks, set the `VITE_DEFAULT_STOCK_SYMBOLS` environment variable to a comma-separated list of stock symbols.
+- **Persistent Storage**: Stock data is saved in local storage, ensuring data persists across sessions when using the same browser.
 
 ---
 
 ## Folder Structure
+
+A high-level overview of the project organization:
 
 ```plaintext
 .
@@ -58,13 +27,55 @@ To add custom stocks, set the `VITE_DEFAULT_STOCK_SYMBOLS` environment variable 
 ├── src/                  # Application source code
 │   ├── components/       # Reusable UI components
 │   ├── providers/        # Context providers (e.g., StocksProvider)
-│   ├── services/         # API and service worker configurations
+│   ├── context/          # Contexts (e.g., StocksContext)
+│   ├── hooks/            # Reusable hooks (e.g., useStocks)
+|   ├── types/            # Type definitions
+|   ├── utils/            # Utility functions
 │   ├── App.tsx           # Main application component
 │   ├── main.tsx          # Application entry point
+├── .env                  # Environment variables
+├── .env.sample           # Sample environment variables
 ├── vite.config.ts        # Vite configuration
 ├── package.json          # Dependencies and scripts
 ├── tsconfig.json         # TypeScript configuration
 ```
+
+---
+
+## Technologies Used
+
+This PWA is built using the following technologies:
+
+- **Vite**: Ultra-fast development build tool.
+- **React**: Component-based library for building UIs.
+- **Material UI**: Responsive, accessible, and customizable components.
+- **Chart.js**: Dynamic charting for stock price visualization.
+- **WebSocket API**: Real-time data streaming for stock updates.
+- **Vite PWA Plugin**: Provides support for PWA features.
+
+## Implementation of Challenges
+
+This project successfully implements both challenges:
+
+### The Easy One
+
+1. **Real-time Stock Data**:
+   - The application fetches stock data in real-time using WebSockets API, ensuring up-to-date information is displayed.
+2. **Components**:
+   - **Left Form**: A form with a dropdown to select a stock to watch and an input for setting a price alert.
+   - **Top Cards**: Displays stock name, value, and margin change as a percentage. Cards turn red if the value is below the alert value and green if above.
+   - **Graph**: Plots the value of all added stocks in dollar value using Chart.js.
+
+### The Real Challenge
+
+1. **PWA Implementation**:
+   - The app is fully installable and works offline, leveraging service workers for caching and background operations.
+2. **WebSocket Management in Background**:
+   - The WebSocket connection is managed in the background to continuously fetch and update stock data, even when the app is not actively in use.
+3. **Local Storage**:
+   - Stock data is saved in local storage, allowing the app to quickly retrieve and plot data upon reopening, enhancing the user experience.
+4. **Web Push Notifications**:
+   - The app sends web push notifications when the stock price goes below the alert level, keeping users informed in real time.
 
 ---
 
@@ -98,7 +109,7 @@ Follow these steps to set up and run the project locally:
     cp .env.sample .env
     ```
 
-### Running the Application
+### Development
 
 To start the development server:
 
@@ -108,7 +119,7 @@ npm run dev
 
 Access the app at [http://localhost:5173](http://localhost:5173).
 
-### Building for Production
+### Build for Production
 
 To create a production build:
 
@@ -120,6 +131,8 @@ Preview the production build:
 
 ```bash
 npm run preview
+```
+
 ### Linting
 
 To run the linter:
@@ -127,6 +140,16 @@ To run the linter:
 ```bash
 npm run lint
 ```
+
+---
+
+## Default Stocks
+
+The application can be configured to add default stocks upon initialization.
+
+To enable this feature, set the `VITE_USE_DEFAULT_STOCKS` environment variable to `true`.
+
+To add custom stocks, set the `VITE_DEFAULT_STOCK_SYMBOLS` environment variable to a comma-separated list of stock symbols.
 
 ---
 
