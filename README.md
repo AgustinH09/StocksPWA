@@ -23,7 +23,9 @@ This PWA is built using the following technologies:
 - **React**: A library for building user interfaces.
 - **Vite PWA Plugin**: Provides support for PWA features, including service workers and a web manifest.
 - **Material UI**: A React-based component library for building accessible and elegant UI components.
-- **Chart.js**: A JavaScript library for creating interactive charts.
+- **Chart.js**: A JavaScript/Typescript library for creating interactive charts.
+- **React useWebSocket**: A React hook for managing WebSocket connections.
+
 
 ### PWA Configuration
 
@@ -34,6 +36,16 @@ The service worker and caching strategies are handled by the Vite PWA plugin. Ke
 - Custom icons and theming via the manifest:
   - `theme_color: '#003366'`
   - Icons: `192x192` and `512x512` PNGs.
+
+---
+
+## Default Stocks
+
+The application can be configured to add default stocks upon initialization.
+
+To enable this feature, set the `VITE_USE_DEFAULT_STOCKS` environment variable to `true`.
+
+To add custom stocks, set the `VITE_DEFAULT_STOCK_SYMBOLS` environment variable to a comma-separated list of stock symbols.
 
 ---
 
@@ -68,25 +80,30 @@ Follow these steps to set up and run the project locally:
 ### Installation
 
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/AgustinH09/stock-pwa.git
-   cd stock-pwa
-   ```
+
+    ```bash
+    git clone https://github.com/AgustinH09/stock-pwa.git
+    cd stock-pwa
+    ```
 
 2. Install dependencies:
-   ```bash
-   npm install
-   # or
-   yarn install
-   ```
+
+    ```bash
+    npm install
+    ```
+
+3. Copy the [`.env.sample`](./.env.sample) file to `.env` and update the environment variables as needed.
+
+    ```bash
+    cp .env.sample .env
+    ```
 
 ### Running the Application
 
 To start the development server:
+
 ```bash
 npm run dev
-# or
-yarn dev
 ```
 
 Access the app at [http://localhost:5173](http://localhost:5173).
@@ -94,26 +111,21 @@ Access the app at [http://localhost:5173](http://localhost:5173).
 ### Building for Production
 
 To create a production build:
+
 ```bash
 npm run build
-# or
-yarn build
 ```
 
 Preview the production build:
+
 ```bash
 npm run preview
-# or
-yarn preview
-```
-
 ### Linting
 
 To run the linter:
+
 ```bash
 npm run lint
-# or
-yarn lint
 ```
 
 ---
@@ -121,16 +133,6 @@ yarn lint
 ## Deployment
 
 The application can be deployed to any static hosting service (e.g., Netlify, Vercel). The production files are located in the `dist/` folder after running the build script.
-
----
-
-## Contributing
-
-1. Fork the repository.
-2. Create a new branch: `git checkout -b feature-name`.
-3. Make your changes and commit them: `git commit -m 'Add feature'`.
-4. Push to the branch: `git push origin feature-name`.
-5. Submit a pull request.
 
 ---
 
