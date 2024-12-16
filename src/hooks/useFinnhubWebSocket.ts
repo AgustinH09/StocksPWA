@@ -1,13 +1,17 @@
-import { useEffect, useRef, useReducer } from 'react';
+import { useEffect, useReducer, useCallback } from "react";
+import useWebSocket from "react-use-websocket";
+import { StockDataPoint, StockInfo, State } from "types/stockTypes";
+import { Action } from "types/actionTypes";
 
-import { StockDataPoint, StockInfo, State } from 'types/stockTypes';
-import { Action } from 'types/actionTypes';
+function getInitialState(): State {
+  const stored = localStorage.getItem("stock_data");
+  const stocks = stored ? (JSON.parse(stored) as Record<string, StockInfo>) : {};
+  return { stocks };
+}
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
-    case 'INIT_FROM_STORAGE':
-      return { ...state, stocks: action.payload };
-    case 'ADD_SYMBOL':
+    case "ADD_SYMBOL":
       return {
         ...state,
         stocks: {
@@ -16,32 +20,27 @@ function reducer(state: State, action: Action): State {
             symbol: action.symbol,
             alertPrice: action.alert,
             latestPrice: action.price,
-            data: action.price ? [{ price: action.price, timestamp: Math.floor(Date.now()/1000) }] : [],
-            lastUpdateTime: action.price ? Date.now() : undefined
-          }
-        }
+            data: action.price
+              ? [{ price: action.price, timestamp: Math.floor(Date.now() / 1000) }]
+              : [],
+            lastUpdateTime: action.price ? Date.now() : undefined,
+          },
+        },
       };
-    case 'REMOVE_SYMBOL': {
+    case "REMOVE_SYMBOL": {
       const newStocks = { ...state.stocks };
       delete newStocks[action.symbol];
       return { ...state, stocks: newStocks };
     }
-    case 'UPDATE_PRICE': {
+    case "UPDATE_PRICE": {
       const stock = state.stocks[action.symbol];
       if (!stock) return state;
-      const newDataPoint: StockDataPoint = { price: action.price, timestamp: action.timestamp ?? Math.floor(Date.now() / 1000) };
-      const updatedData = [...stock.data, newDataPoint].slice(-200);
-      const wasAboveAlert = stock.latestPrice !== undefined && (stock.alertPrice !== undefined ? stock.latestPrice >= stock.alertPrice : true);
-      const isBelowAlert = (stock.alertPrice !== undefined) ? (action.price < stock.alertPrice) : false;
 
-      if (isBelowAlert && wasAboveAlert) {
-        // Trigger notification
-        setTimeout(() => {
-          import('../utils/notifications').then(({ showPriceAlertNotification }) => {
-            showPriceAlertNotification(`Price Alert: ${action.symbol}`, `The price has fallen below your alert ${stock.alertPrice}. Current: ${action.price}`);
-          });
-        }, 0);
-      }
+      const newDataPoint: StockDataPoint = {
+        price: action.price,
+        timestamp: action.timestamp ?? Math.floor(Date.now() / 1000),
+      };
+      const updatedData = [...stock.data, newDataPoint];
 
       return {
         ...state,
@@ -51,9 +50,9 @@ function reducer(state: State, action: Action): State {
             ...stock,
             latestPrice: action.price,
             data: updatedData,
-            lastUpdateTime: Date.now()
-          }
-        }
+            lastUpdateTime: Date.now(),
+          },
+        },
       };
     }
     default:
@@ -62,107 +61,73 @@ function reducer(state: State, action: Action): State {
 }
 
 export function useFinnhubWebSocket() {
-  const [state, dispatch] = useReducer(reducer, { stocks: {} });
-  const wsRef = useRef<WebSocket | null>(null);
+  const [state, dispatch] = useReducer(reducer, {}, getInitialState);
   const apiKey = import.meta.env.VITE_FINNHUB_API_KEY;
 
   useEffect(() => {
-    const stored = localStorage.getItem('stock_data');
-    if (stored) {
-      const parsed = JSON.parse(stored) as Record<string, StockInfo>;
-      dispatch({ type: 'INIT_FROM_STORAGE', payload: parsed });
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('stock_data', JSON.stringify(state.stocks));
+    localStorage.setItem("stock_data", JSON.stringify(state.stocks));
   }, [state.stocks]);
 
-  useEffect(() => {
-    if (!apiKey) {
-      console.error("Finnhub API key is missing");
-      return;
-    }
-
-    const ws = new WebSocket(`wss://ws.finnhub.io?token=${apiKey}`);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      console.log("WebSocket connected");
-      // Subscribe to all currently tracked symbols
-      Object.keys(state.stocks).forEach(symbol => {
-        ws.send(JSON.stringify({ type: 'subscribe', symbol }));
-      });
-    };
-
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'trade' && Array.isArray(data.data)) {
-        data.data.forEach((trade: { s: string; p: number; t: number }) => {
-          const { s: symbol, p: price, t: timestamp } = trade;
-          dispatch({ type: 'UPDATE_PRICE', symbol, price, timestamp: Math.floor(timestamp / 1000) });
+  const { sendMessage, lastMessage } = useWebSocket(
+    apiKey ? `wss://ws.finnhub.io?token=${apiKey}` : null,
+    {
+      onOpen: () => {
+        console.log("WebSocket connected");
+        Object.keys(state.stocks).forEach((symbol) => {
+          sendMessage(JSON.stringify({ type: "subscribe", symbol }));
         });
-      }
-    };
-
-    ws.onclose = () => {
-      console.log("WebSocket disconnected");
-    };
-
-    return () => {
-      ws.close();
-    };
-  }, [apiKey, state.stocks]);
-
-  const addSymbol = async (symbol: string, alert?: number): Promise<boolean> => {
-    if (state.stocks[symbol]) {
-      return false;
+      },
+      onClose: () => {
+        console.log("WebSocket disconnected");
+      },
+      shouldReconnect: () => true,
     }
-
-    dispatch({ type: 'ADD_SYMBOL', symbol, alert });
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'subscribe', symbol }));
-    }
-
-    const price = await fetchQuoteForSymbol(symbol, apiKey);
-    if (price !== undefined) {
-      dispatch({ type: 'ADD_SYMBOL', symbol, alert, price });
-    }
-    return true;
-  };
-
-
-  const removeSymbol = (symbol: string) => {
-    dispatch({ type: 'REMOVE_SYMBOL', symbol });
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'unsubscribe', symbol }));
-    }
-  };
+  );
 
   useEffect(() => {
-    const interval = setInterval(async () => {
-      const now = Date.now();
-      for (const symbol in state.stocks) {
-        const stock = state.stocks[symbol];
-        const lastUpdate = stock.lastUpdateTime ?? 0;
+    if (!lastMessage) return;
 
-        if (now - lastUpdate > 60000) {
-          const price = await fetchQuoteForSymbol(symbol, apiKey);
-          if (price !== undefined) {
-            dispatch({ type: 'UPDATE_PRICE', symbol, price, timestamp: Math.floor(Date.now()/1000) });
-          } else {
-            dispatch({ type: 'UPDATE_PRICE', symbol, price: stock.latestPrice ?? 0, timestamp: Math.floor(Date.now()/1000) });
-          }
-        }
-      }
-    }, 60000);
-    return () => clearInterval(interval);
-  }, [state.stocks, apiKey]);
+    const data = JSON.parse(lastMessage.data);
+    if (data.type === "trade" && Array.isArray(data.data)) {
+      data.data.forEach((trade: { s: string; p: number; t: number }) => {
+        const { s: symbol, p: price, t: timestamp } = trade;
+        dispatch({
+          type: "UPDATE_PRICE",
+          symbol,
+          price,
+          timestamp: Math.floor(timestamp / 1000),
+        });
+      });
+    }
+  }, [lastMessage]);
+
+  const addSymbol = useCallback(
+    async (symbol: string, alert?: number): Promise<boolean> => {
+      if (state.stocks[symbol]) return false;
+
+      const price = await fetchQuoteForSymbol(symbol, apiKey);
+      dispatch({ type: "ADD_SYMBOL", symbol, alert, price });
+
+      sendMessage(JSON.stringify({ type: "subscribe", symbol }));
+      return true;
+    },
+    [state.stocks, apiKey, sendMessage]
+  );
+
+  const removeSymbol = useCallback(
+    (symbol: string) => {
+      if (!state.stocks[symbol]) return;
+
+      dispatch({ type: "REMOVE_SYMBOL", symbol });
+      sendMessage(JSON.stringify({ type: "unsubscribe", symbol }));
+    },
+    [state.stocks, sendMessage]
+  );
 
   return {
     stocks: state.stocks,
     addSymbol,
-    removeSymbol
+    removeSymbol,
   };
 }
 

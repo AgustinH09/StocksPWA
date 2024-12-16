@@ -6,7 +6,7 @@ export const StocksProvider: React.FC<{children: React.ReactNode}> = ({ children
   const { stocks, addSymbol, removeSymbol } = useFinnhubWebSocket();
 
   useEffect(() => {
-    if (Object.keys(stocks).length === 0) {
+    if (Object.keys(stocks).length === 0 && localStorage.getItem("stock_data") == null) {
       const defaultSymbolsEnv = import.meta.env.VITE_DEFAULT_STOCK_SYMBOLS || '';
       const defaultSymbols = defaultSymbolsEnv
         .split(',')

@@ -30,7 +30,7 @@ function reducer(state: State, action: Action): State {
       const stock = state.stocks[action.symbol];
       if (!stock) return state;
       const newDataPoint: StockDataPoint = { price: action.price, timestamp: Math.floor(Date.now() / 1000) };
-      const updatedData = [...stock.data, newDataPoint].slice(-200);
+      const updatedData = [...stock.data, newDataPoint];
       return {
         ...state,
         stocks: {
@@ -52,16 +52,20 @@ export function useFinnhubQuotes() {
   const [state, dispatch] = useReducer(reducer, { stocks: {} });
   const apiKey = import.meta.env.VITE_FINNHUB_API_KEY;
   const intervalRef = useRef<number | null>(null);
+  const stocksInitialized = useRef(false);
 
   useEffect(() => {
     const stored = localStorage.getItem('stock_data');
     if (stored) {
       const parsed = JSON.parse(stored) as Record<string, StockInfo>;
       dispatch({ type: 'INIT_FROM_STORAGE', payload: parsed });
+      stocksInitialized.current = true;
     }
   }, []);
 
   useEffect(() => {
+    if (!stocksInitialized.current) return;
+
     localStorage.setItem('stock_data', JSON.stringify(state.stocks));
   }, [state.stocks]);
 
